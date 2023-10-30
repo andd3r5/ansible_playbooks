@@ -1,0 +1,51 @@
+---
+- hosts: postgres
+  become: yes
+  gather_facts: no
+
+  tasks:
+  - name: ensure apt cache is up to date
+    apt: update_cache=yes
+
+  - name: ensure packages are installed
+    apt:
+      name: 
+        - postgresql
+        - libpq-dev
+        - python3-psycopg2
+
+- hosts: postgres
+  become: yes
+  become_user: postgres
+  gather_facts: no
+
+  vars:
+    dbname: ship
+    dbuser: shipper
+    #dbpassword needs to be defined in command line using the -e flag
+    #example: ansible-playbook postgresql_playbook.yaml -e "dbpassword=mysupersecretpassword"
+
+  tasks:
+  - name: ensure database is created
+    postgresql_db: 
+      name: "{{ dbname }}"
+
+  - name: ensure user has access to database
+    postgresql_user: 
+      db: "{{ dbname }}"
+      name: "{{ dbuser }}"
+      password: "{{ dbpassword }}"
+      priv: ALL
+
+  - name: ensure user does not have unnecessary privilege
+    postgresql_user: 
+      name: "{{ dbuser }}"
+      role_attr_flags: NOSUPERUSER,NOCREATEDB
+
+  - name: ensure no other user can access the database
+    postgresql_privs: 
+      db: "{{ dbname }}"
+      role: PUBLIC
+      type: database
+      priv: ALL
+      state: absent
